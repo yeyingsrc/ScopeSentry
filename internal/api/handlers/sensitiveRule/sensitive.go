@@ -26,14 +26,14 @@ type updateRequest struct {
 	Name    string `json:"name" binding:"required"`
 	Regular string `json:"regular" binding:"required"`
 	Color   string `json:"color" binding:"required"`
-	State   bool   `json:"state" binding:"required"`
+	State   *bool  `json:"state" binding:"required"`
 }
 
 type addRequest struct {
 	Name    string `json:"name" binding:"required"`
 	Regular string `json:"regular" binding:"required"`
 	Color   string `json:"color" binding:"required"`
-	State   bool   `json:"state" binding:"required"`
+	State   *bool  `json:"state" binding:"required"`
 }
 
 type idsStateRequest struct {
@@ -67,7 +67,7 @@ func Update(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := sensitiveService.RuleUpdate(c, req.ID, req.Name, req.Regular, req.Color, req.State); err != nil {
+	if err := sensitiveService.RuleUpdate(c, req.ID, req.Name, req.Regular, req.Color, *req.State); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -81,7 +81,7 @@ func Add(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := sensitiveService.RuleAdd(c, req.Name, req.Regular, req.Color, req.State); err != nil {
+	if err := sensitiveService.RuleAdd(c, req.Name, req.Regular, req.Color, *req.State); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
