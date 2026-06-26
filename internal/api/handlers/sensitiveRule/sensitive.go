@@ -8,12 +8,17 @@
 package sensitiveRule
 
 import (
+	"sync"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	svc "github.com/Autumn-27/ScopeSentry/internal/services/sensitive_rule"
 	"github.com/gin-gonic/gin"
 )
 
-var sensitiveService svc.Service
+var (
+	sensitiveService     svc.Service
+	sensitiveServiceOnce sync.Once
+)
 
 type listRequest struct {
 	Search    string `json:"search" binding:"omitempty"`
@@ -52,7 +57,7 @@ func Data(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	list, total, err := sensitiveService.RuleList(c, req.Search, req.PageIndex, req.PageSize)
+	list, total, err := getSensitiveService().RuleList(c, req.Search, req.PageIndex, req.PageSize)
 	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
@@ -67,7 +72,7 @@ func Update(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := sensitiveService.RuleUpdate(c, req.ID, req.Name, req.Regular, req.Color, *req.State); err != nil {
+	if err := getSensitiveService().RuleUpdate(c, req.ID, req.Name, req.Regular, req.Color, *req.State); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -81,7 +86,7 @@ func Add(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := sensitiveService.RuleAdd(c, req.Name, req.Regular, req.Color, *req.State); err != nil {
+	if err := getSensitiveService().RuleAdd(c, req.Name, req.Regular, req.Color, *req.State); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -95,7 +100,7 @@ func UpdateState(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if _, err := sensitiveService.RuleUpdateState(c, req.IDs, req.State); err != nil {
+	if _, err := getSensitiveService().RuleUpdateState(c, req.IDs, req.State); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -109,13 +114,16 @@ func Delete(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if _, err := sensitiveService.RuleDelete(c, req.IDs); err != nil {
+	if _, err := getSensitiveService().RuleDelete(c, req.IDs); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
 	response.Success(c, nil, "api.success")
 }
 
-func init() {
-	sensitiveService = svc.NewService()
+func getSensitiveService() svc.Service {
+	sensitiveServiceOnce.Do(func() {
+		sensitiveService = svc.NewService()
+	})
+	return sensitiveService
 }
