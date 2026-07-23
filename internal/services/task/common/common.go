@@ -69,11 +69,18 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 	query.PageSize = task.TargetNumber
 	query.SearchExpression = task.Search
 	query.Filter = make(map[string][]interface{})
-	projects := make([]interface{}, len(task.Project))
-	for i, v := range task.Project {
-		projects[i] = v
+	if len(task.Filter) > 0 {
+		for k, v := range task.Filter {
+			query.Filter[k] = v
+		}
 	}
-	query.Filter["project"] = projects
+	if len(task.Project) > 0 {
+		projects := make([]interface{}, len(task.Project))
+		for i, v := range task.Project {
+			projects[i] = v
+		}
+		query.Filter["project"] = projects
+	}
 	if task.TargetSource == "general" {
 		//普通的情况不需要做改变
 	} else if task.TargetSource == "project" {
@@ -98,6 +105,7 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 		// 从子域名处创建
 		target, err = s.subdomainService.GetTaskTarget(ctx, query)
 		if err != nil {
+			return "", err
 		}
 	} else if task.TargetSource == "UrlScan" || (task.TargetSource == "UrlScanSource" && task.TargetTp == "search") {
 		// 从url扫描处创建

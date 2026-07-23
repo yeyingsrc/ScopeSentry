@@ -139,3 +139,33 @@ const createScanTemplateToolDesc = `创建扫描模板。
 常见模块: TargetHandler, SubdomainScan, SubdomainSecurity, PortScanPreparation,
 PortScan, PortFingerprint, AssetMapping, AssetHandle, URLScan, WebCrawler,
 URLSecurity, DirScan, VulnerabilityScan, PassiveScan`
+
+// createScanTaskToolDesc 扫描任务创建说明（与 Web 端 /api/task/add 及 common.Insert 逻辑一致）
+const createScanTaskToolDesc = `创建扫描任务。必填 name、node；template 为扫描模板 ObjectID（list_scan_templates 获取）。
+
+【目标来源 targetSource】决定任务目标如何解析（对应 internal/services/task/common/common.go）:
+- general: 直接使用 target 字段（多行/逗号分隔域名、IP、URL）
+- project: 从关联项目读取目标，填 project（项目 ObjectID 数组），不需 target
+- asset: 从 Web 资产库搜索选取，需 search；可选 project、filter、targetNumber
+- RootDomain: 从根域名库搜索选取，需 search；可选 project、filter、targetNumber
+- subdomain: 从子域名库搜索选取，需 search；可选 project、filter、targetNumber
+- UrlScan: 从 URL 扫描结果搜索选取，需 search；可选 project、filter、targetNumber
+- assetSource / RootDomainSource / subdomainSource / UrlScanSource: 从对应资产页创建任务
+  - targetTp=search: 用 search + filter + project + targetNumber 筛选目标
+  - targetTp=select: 用 targetIds 指定资产 ObjectID 列表
+
+【search】搜索表达式，语法同 list_assets（如 task=="某任务名"、domain=^example.com）。
+从子域名续扫示例: targetSource=subdomain, search=task=="子域名收集任务名"
+
+【filter】精确过滤 JSON，与 search 可组合；filter.project 为项目 ObjectID。
+【targetNumber】search 模式下的目标数量上限，0 表示不限制。
+【targetIds】select 模式下选中的资产 ObjectID 列表。
+
+【其他参数】
+- allNode: 自动加入全部在线节点
+- ignore / duplicates: 忽略目标、去重策略
+- bindProject: 绑定项目（结果归属）
+- scheduledTasks + cycleType/hour/minute/day/week: 计划任务
+
+根域名完整信息收集推荐两阶段: 先用 general + 仅 SubdomainScan/SubdomainSecurity 扫根域名；
+完成后用 subdomain + search=task=="上一任务名" 创建后续模块任务。`

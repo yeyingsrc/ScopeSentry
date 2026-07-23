@@ -133,7 +133,7 @@ func registerTools(server *mcp.Server) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "create_scan_task",
-		Description: "创建扫描任务。必填 name 和 node；template 必须是扫描模板的 ObjectID（用 list_scan_templates 获取，或 create_scan_template 的返回 id），不能用模板名。可用 target 直接给目标，或用 project/search 从已有资产选取目标。",
+		Description: createScanTaskToolDesc,
 	}, createScanTask)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -430,20 +430,27 @@ func buildTemplateFromModules(ctx context.Context, input createScanTemplateInput
 }
 
 type createScanTaskInput struct {
-	Name           string   `json:"name" jsonschema:"任务名称，必填，不可重复"`
-	Target         string   `json:"target" jsonschema:"扫描目标。多行或逗号分隔的域名/IP/URL 等"`
-	Node           []string `json:"node" jsonschema:"执行扫描的节点名称列表，必填"`
-	Template       string   `json:"template,omitempty" jsonschema:"扫描模板 ID 或名称"`
-	AllNode        bool     `json:"allNode,omitempty" jsonschema:"是否使用全部在线节点"`
-	Ignore         string   `json:"ignore,omitempty" jsonschema:"忽略目标列表"`
-	Duplicates     string   `json:"duplicates,omitempty" jsonschema:"去重策略"`
-	Project        []string `json:"project,omitempty" jsonschema:"关联项目 ID 列表"`
-	Search         string   `json:"search,omitempty" jsonschema:"从已有资产中选择目标的搜索表达式，语法同 list_assets 的 search"`
-	ScheduledTasks bool     `json:"scheduledTasks,omitempty" jsonschema:"是否创建为计划任务"`
-	Hour           int      `json:"hour,omitempty" jsonschema:"计划任务间隔-小时"`
-	Minute         int      `json:"minute,omitempty" jsonschema:"计划任务间隔-分钟"`
-	Day            int      `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
-	CycleType      string   `json:"cycleType,omitempty" jsonschema:"周期类型，如 hourly/daily/weekly"`
+	Name           string              `json:"name" jsonschema:"任务名称，必填，不可重复"`
+	Target         string              `json:"target,omitempty" jsonschema:"扫描目标。targetSource=general 时必填，多行或逗号分隔"`
+	Node           []string            `json:"node" jsonschema:"执行扫描的节点名称列表，必填"`
+	Template       string              `json:"template,omitempty" jsonschema:"扫描模板 ObjectID（必填才能执行扫描）"`
+	AllNode        bool                `json:"allNode,omitempty" jsonschema:"是否自动加入全部在线节点"`
+	Ignore         string              `json:"ignore,omitempty" jsonschema:"忽略目标列表，格式同 target"`
+	Duplicates     string              `json:"duplicates,omitempty" jsonschema:"去重策略，如 None"`
+	Project        []string            `json:"project,omitempty" jsonschema:"关联项目 ObjectID 列表；targetSource=project 时必填"`
+	TargetSource   string              `json:"targetSource,omitempty" jsonschema:"目标来源：general|project|asset|RootDomain|subdomain|UrlScan|assetSource|RootDomainSource|subdomainSource|UrlScanSource，默认 general"`
+	TargetTp       string              `json:"targetTp,omitempty" jsonschema:"*Source 来源时的选取方式：search（搜索筛选）或 select（按 ID 选中）"`
+	Search         string              `json:"search,omitempty" jsonschema:"从资产库筛选目标的 search 表达式，语法同 list_assets；如 task==\"子域名任务名\""`
+	Filter         map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤，与 search 可组合；filter.project 为项目 ObjectID"`
+	TargetNumber   int                 `json:"targetNumber,omitempty" jsonschema:"search 模式下目标数量上限，0 表示不限制"`
+	TargetIds      []string            `json:"targetIds,omitempty" jsonschema:"select 模式下选中的资产 ObjectID 列表"`
+	BindProject    string              `json:"bindProject,omitempty" jsonschema:"绑定项目 ObjectID，扫描结果归属"`
+	ScheduledTasks bool                `json:"scheduledTasks,omitempty" jsonschema:"是否创建为计划任务"`
+	Hour           int                 `json:"hour,omitempty" jsonschema:"计划任务间隔-小时"`
+	Minute         int                 `json:"minute,omitempty" jsonschema:"计划任务间隔-分钟"`
+	Day            int                 `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
+	Week           int                 `json:"week,omitempty" jsonschema:"计划任务间隔-周（weekly 周期）"`
+	CycleType      string              `json:"cycleType,omitempty" jsonschema:"周期类型：nhours/daily/weekly 等"`
 }
 
 func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createScanTaskInput) (*mcp.CallToolResult, any, error) {
@@ -459,6 +466,11 @@ func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createSca
 		return errorResult("任务名已存在", nil)
 	}
 
+	targetSource := input.TargetSource
+	if targetSource == "" {
+		targetSource = "general"
+	}
+
 	taskModel := &models.Task{
 		Name:           input.Name,
 		Target:         input.Target,
@@ -468,12 +480,29 @@ func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createSca
 		Ignore:         input.Ignore,
 		Duplicates:     input.Duplicates,
 		Project:        input.Project,
+		TargetSource:   targetSource,
+		TargetTp:       input.TargetTp,
 		Search:         input.Search,
+		TargetNumber:   input.TargetNumber,
+		TargetIds:      input.TargetIds,
+		BindProject:    input.BindProject,
 		ScheduledTasks: input.ScheduledTasks,
 		Hour:           input.Hour,
 		Minute:         input.Minute,
 		Day:            input.Day,
+		Week:           input.Week,
 		CycleType:      input.CycleType,
+	}
+	if len(input.Filter) > 0 {
+		filter := make(map[string][]interface{}, len(input.Filter))
+		for k, vals := range input.Filter {
+			items := make([]interface{}, len(vals))
+			for i, v := range vals {
+				items[i] = v
+			}
+			filter[k] = items
+		}
+		taskModel.Filter = filter
 	}
 	taskID, err := d.taskCommonService.Insert(ctx, taskModel)
 	if err != nil {
