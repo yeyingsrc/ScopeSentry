@@ -436,17 +436,17 @@ func buildTemplateFromModules(ctx context.Context, input createScanTemplateInput
 
 type createScanTaskInput struct {
 	Name           string              `json:"name" jsonschema:"任务名称，必填，不可重复"`
-	Target         string              `json:"target,omitempty" jsonschema:"扫描目标。targetSource=general 时必填，多行或逗号分隔"`
+	Target         string              `json:"target,omitempty" jsonschema:"扫描目标，targetSource 为 general 时必填，多行或逗号分隔"`
 	Node           []string            `json:"node" jsonschema:"执行扫描的节点名称列表，必填"`
-	Template       string              `json:"template,omitempty" jsonschema:"扫描模板 ObjectID（必填才能执行扫描）"`
+	Template       string              `json:"template,omitempty" jsonschema:"扫描模板 ObjectID，必填才能执行扫描"`
 	AllNode        bool                `json:"allNode,omitempty" jsonschema:"是否自动加入全部在线节点"`
 	Ignore         string              `json:"ignore,omitempty" jsonschema:"忽略目标列表，格式同 target"`
 	Duplicates     string              `json:"duplicates,omitempty" jsonschema:"去重策略，如 None"`
-	Project        []string            `json:"project,omitempty" jsonschema:"关联项目 ObjectID 列表；targetSource=project 时必填"`
-	TargetSource   string              `json:"targetSource,omitempty" jsonschema:"目标来源：general|project|asset|RootDomain|subdomain|UrlScan|assetSource|RootDomainSource|subdomainSource|UrlScanSource，默认 general"`
-	TargetTp       string              `json:"targetTp,omitempty" jsonschema:"*Source 来源时的选取方式：search（搜索筛选）或 select（按 ID 选中）"`
-	Search         string              `json:"search,omitempty" jsonschema:"从资产库筛选目标的 search 表达式，语法同 list_assets；如 task==\"子域名任务名\""`
-	Filter         map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤，与 search 可组合；filter.project 为项目 ObjectID"`
+	Project        []string            `json:"project,omitempty" jsonschema:"关联项目 ObjectID 列表，targetSource 为 project 时必填"`
+	TargetSource   string              `json:"targetSource,omitempty" jsonschema:"目标来源，可选 general project asset RootDomain subdomain UrlScan 及对应 Source 后缀，默认 general，详见工具 description"`
+	TargetTp       string              `json:"targetTp,omitempty" jsonschema:"Source 来源时的选取方式，search 或 select"`
+	Search         string              `json:"search,omitempty" jsonschema:"从资产库筛选目标的 search 表达式，语法同 list_assets，详见工具 description"`
+	Filter         map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤，与 search 可组合，filter.project 为项目 ObjectID"`
 	TargetNumber   int                 `json:"targetNumber,omitempty" jsonschema:"search 模式下目标数量上限，0 表示不限制"`
 	TargetIds      []string            `json:"targetIds,omitempty" jsonschema:"select 模式下选中的资产 ObjectID 列表"`
 	BindProject    string              `json:"bindProject,omitempty" jsonschema:"绑定项目 ObjectID，扫描结果归属"`
@@ -455,7 +455,7 @@ type createScanTaskInput struct {
 	Minute         int                 `json:"minute,omitempty" jsonschema:"计划任务间隔-分钟"`
 	Day            int                 `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
 	Week           int                 `json:"week,omitempty" jsonschema:"计划任务间隔-周（weekly 周期）"`
-	CycleType      string              `json:"cycleType,omitempty" jsonschema:"周期类型：nhours/daily/weekly 等"`
+	CycleType      string              `json:"cycleType,omitempty" jsonschema:"周期类型，如 nhours daily weekly"`
 }
 
 func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createScanTaskInput) (*mcp.CallToolResult, any, error) {
@@ -520,7 +520,7 @@ type listAssetsInput struct {
 	AssetType        string              `json:"asset_type" jsonschema:"资产类型，必填。如 asset、RootDomain、subdomain、app、mp、UrlScan、SensitiveResult、DirScanResult、crawler、vulnerability、PageMonitoring、IPAsset、SubdomainTakerResult"`
 	PageIndex        int                 `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
 	PageSize         int                 `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
-	SearchExpression string              `json:"search,omitempty" jsonschema:"搜索表达式（非 SQL）。= 模糊、== 精确、!= 排除，&&/|| 组合。通用字段 tag/task/rootDomain（project 不支持 search）；各类型专有字段见工具 description"`
+	SearchExpression string              `json:"search,omitempty" jsonschema:"搜索表达式，非 SQL，语法详见工具 description"`
 	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，与 search 可组合。filter.project 为项目 ObjectID（list_projects 获取，非项目名）；filter.task 为任务名称。详见工具 description"`
 	Sort             map[string]string   `json:"sort,omitempty" jsonschema:"排序。仅 UrlScan/DirScanResult 支持 length：ascending 升序，其他值降序"`
 	Sid              string              `json:"sid,omitempty" jsonschema:"敏感信息规则名称，仅 asset_type 为 SensitiveResult 时有效"`
