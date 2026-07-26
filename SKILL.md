@@ -60,13 +60,16 @@ Cursor → Settings → MCP → 添加服务器：
 | `list_plugins`         | 可用插件（含 hash、默认参数） |
 | `create_scan_template` | 创建扫描模板            |
 | `create_scan_task`     | 创建扫描任务            |
-| `list_assets`          | 查询各类资产            |
+| `list_assets`          | 查询各类资产（分页列表）       |
+| `count_assets`         | 统计资产数量（`/api/assets/common/total`） |
 | `get_asset_detail`     | 资产或漏洞详情           |
 | `add_asset_tag`        | 为资产添加标签           |
 | `list_nodes`           | 扫描节点列表            |
 
 
-各工具参数以 MCP 工具描述（schema）为准；`list_assets` 的字段说明最完整，查询资产前可先阅读该工具 description。
+各工具参数以 MCP 工具描述（schema）为准；`list_assets` / `count_assets` 的 search、filter 语法一致，查询资产前可先阅读 `list_assets` description。
+
+需要知道「共多少条」时用 `count_assets`（对应 Web 分页总数接口），不必为了数总数反复翻页 `list_assets`。
 
 ---
 
@@ -174,9 +177,19 @@ flowchart LR
 
 ---
 
-## 4. 资产查询（`list_assets`）
+## 4. 资产查询（`list_assets` / `count_assets`）
 
-**性能建议：** 有项目条件时优先用 `filter.project` 缩小范围；`search` 中对已建索引字段尽量用 `==` 全等或 `^` 前缀匹配（见 [4.3](#43-search-搜索表达式)），避免大面积 `=` 模糊查询拖慢响应。无项目上下文时不强制加项目筛选。
+`count_assets` 与 `list_assets` 使用相同的 `asset_type`、`search`、`filter`，返回 `{ "total": N }`，对应 Web 端 `/api/assets/common/total`。
+
+```json
+{
+  "asset_type": "subdomain",
+  "search": "task==\"某任务名\"",
+  "filter": {"project": ["<项目ObjectID>"]}
+}
+```
+
+**性能建议（`list_assets` / `count_assets` 通用）：** 有项目条件时优先用 `filter.project` 缩小范围；`search` 中对已建索引字段尽量用 `==` 全等或 `^` 前缀匹配（见 [4.3](#43-search-搜索表达式)），避免大面积 `=` 模糊查询拖慢响应。无项目上下文时不强制加项目筛选。
 
 支持 `filter.project` 的类型见 [4.4](#44-filter-精确过滤) 表格。
 

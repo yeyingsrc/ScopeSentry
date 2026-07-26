@@ -169,3 +169,15 @@ const createScanTaskToolDesc = `创建扫描任务。必填 name、node；templa
 
 根域名完整信息收集推荐两阶段: 先用 general + 仅 SubdomainScan/SubdomainSecurity 扫根域名；
 完成后用 subdomain + search=task=="上一任务名" 创建后续模块任务。`
+
+// countAssetsToolDesc 资产数量统计（对应 POST /api/assets/common/total）
+const countAssetsToolDesc = `统计符合条件的资产数量（Web 端分页「共 N 条」同源接口 /api/assets/common/total）。
+
+参数与 list_assets 的 search/filter 一致，但不分页，只返回 total。
+asset_type 取值同 list_assets（asset、RootDomain、subdomain、vulnerability 等）。
+
+示例：统计某项目下子域名数量
+{"asset_type":"subdomain","filter":{"project":["<项目ObjectID>"]}}
+
+示例：统计某任务产生的 Web 资产
+{"asset_type":"asset","search":"task==\"某任务名\""}`

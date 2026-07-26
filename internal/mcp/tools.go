@@ -142,6 +142,11 @@ func registerTools(server *mcp.Server) {
 	}, listAssets)
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "count_assets",
+		Description: countAssetsToolDesc,
+	}, countAssets)
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_asset_detail",
 		Description: "获取资产详情，asset_type 支持 asset 或 vulnerability",
 	}, getAssetDetail)
@@ -519,6 +524,43 @@ type listAssetsInput struct {
 	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，与 search 可组合。filter.project 为项目 ObjectID（list_projects 获取，非项目名）；filter.task 为任务名称。详见工具 description"`
 	Sort             map[string]string   `json:"sort,omitempty" jsonschema:"排序。仅 UrlScan/DirScanResult 支持 length：ascending 升序，其他值降序"`
 	Sid              string              `json:"sid,omitempty" jsonschema:"敏感信息规则名称，仅 asset_type 为 SensitiveResult 时有效"`
+}
+
+type countAssetsInput struct {
+	AssetType        string              `json:"asset_type" jsonschema:"资产类型，必填。取值同 list_assets"`
+	SearchExpression string              `json:"search,omitempty" jsonschema:"搜索表达式，语法同 list_assets"`
+	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，语法同 list_assets；filter.project 为项目 ObjectID"`
+	Sid              string              `json:"sid,omitempty" jsonschema:"敏感信息规则名称，仅 asset_type 为 SensitiveResult 时有效"`
+}
+
+func countAssets(ctx context.Context, _ *mcp.CallToolRequest, input countAssetsInput) (*mcp.CallToolResult, any, error) {
+	index, err := normalizeAssetIndex(input.AssetType)
+	if err != nil {
+		return errorResult(err.Error(), nil)
+	}
+
+	query := models.SearchRequest{
+		Index:            index,
+		SearchExpression: input.SearchExpression,
+		Sid:              input.Sid,
+	}
+	if len(input.Filter) > 0 {
+		filter := make(map[string][]interface{}, len(input.Filter))
+		for k, vals := range input.Filter {
+			items := make([]interface{}, len(vals))
+			for i, v := range vals {
+				items[i] = v
+			}
+			filter[k] = items
+		}
+		query.Filter = filter
+	}
+
+	total, err := d.commonService.TotalData(ctx, &query)
+	if err != nil {
+		return errorResult("统计资产数量失败", err)
+	}
+	return jsonToolResult(ginH{"total": total})
 }
 
 func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInput) (*mcp.CallToolResult, any, error) {
